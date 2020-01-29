@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Coding.Challenge.ConsoleApp": {
+      "commandName": "Project",
+      "commandLineArgs": "./eBook.txt"
+    }
+  }
+}
