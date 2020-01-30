@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Coding.Challenge.ConsoleApp
 {
@@ -31,31 +33,43 @@ namespace Coding.Challenge.ConsoleApp
         
         public static IEnumerable<KeyValuePair<string, int>> ParseTextFile(string filePath)
         {
-            const int bufferSize = 65536;
-            var wordDictionary = new Dictionary<string, int>();
+            var wordDictionary = new ConcurrentDictionary<string, int>();
+            var allLines = ReadAllLines(filePath);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.None, bufferSize))
+            Parallel.ForEach(allLines, currentLine =>
             {
-                using var streamReader = new StreamReader(fileStream, Encoding.UTF8, false, bufferSize);
-                string currentLine;
+                var matches = Regex.Matches(currentLine, @"\w+"); // Words no empty matches
                 
-                while ((currentLine = streamReader.ReadLine()) != null)
+                foreach (Match match in matches)
                 {
-                    var matches = Regex.Matches(currentLine, @"\w+"); // Words no empty matches
-                    foreach (Match match in matches)
-                    {
-                        var key = match.Value.ToLower();
-                        if (!wordDictionary.TryGetValue(key, out _))
-                            wordDictionary[key] = 0;
-
-                        wordDictionary[key] = wordDictionary[key] + 1;
-                    }
+                    var key = match.Value.ToLower();
+                    wordDictionary.AddOrUpdate(key, 1, (k, oldValue) => oldValue + 1);
                 }
-            }
+
+            });
 
             return wordDictionary
                 .OrderByDescending(x => x.Value)
                 .Take(20);
+        }
+
+        private static IEnumerable<string> ReadAllLines(string filePath)
+        {
+            const int bufferSize = 65536;
+
+            var allLines = new List<string>();
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.None, bufferSize))
+            {
+                using var streamReader = new StreamReader(fileStream, Encoding.UTF8, false, bufferSize);
+                string currentLine;
+
+                while ((currentLine = streamReader.ReadLine()) != null)
+                {
+                    allLines.Add(currentLine);
+                }
+            }
+
+            return allLines;
         }
     }
 }
